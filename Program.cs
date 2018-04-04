@@ -1,16 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-using System.Timers;
 using DhcpClientNET.Dhcp;
 
 namespace DhcpClientNET
@@ -39,7 +34,7 @@ namespace DhcpClientNET
 
             bool running = true;
             bool rcvAck = false;
-            bool rebinding = false;
+            ManualResetEvent rcvAckEvent = new ManualResetEvent(false);
             DhcpOffer selectedOffer = null;
             var socket = SetupPromiscousSocket(mainInterface);
 
@@ -66,40 +61,21 @@ namespace DhcpClientNET
                                     Console.WriteLine($"New Offer from {rcvPacket.Source}");
                                     break;
                                 case DhcpMessageType.Ack:
-                                    if (!rcvAck && !rebinding)
+                                    if (!rcvAck)
                                     {
                                         Console.WriteLine("OK from server - ready to launch!");
-                                        ProcessStartInfo netshStart = new ProcessStartInfo()
-                                        {
-                                            FileName = "netsh",
-                                            Arguments = $"interface ipv4 set address name=\"{mainInterface.Name}\" static" +
-                                                        $" {selectedOffer.ClientAddress} {selectedOffer.SubnetMask} {selectedOffer.Gateway} 1",
-                                            UseShellExecute = false
-                                        };
 
-                                        Process netshProc = Process.Start(netshStart);
-                                        netshProc.WaitForExit();
-                                        Console.WriteLine($"netsh exit code - {netshProc.ExitCode}");
-
-                                        rebinding = true;
-
-                                        System.Timers.Timer rebindTimer = new System.Timers.Timer(
-                                            TimeSpan.FromSeconds(30).TotalMilliseconds
+                                        int exitCodeInter = ExecuteNetshCommand(
+                                            $"interface ipv4 set address name=\"{mainInterface.Name}\" static" +
+                                            $" {selectedOffer.ClientAddress} {selectedOffer.SubnetMask} {selectedOffer.Gateway} 1"
                                         );
-                                        rebindTimer.Elapsed += (sender, eventArgs) =>
-                                        {
-                                            Console.WriteLine("Send DHCP rebind");
+                                        Console.WriteLine($"netsh Interface exit code - {exitCodeInter}");
 
-                                            dhcpTransactionId = (uint) random.Next();
-                                            IPv4Packet dhcpRebind = BuildDhcpRebindMessage(selectedOffer, mainInterface, ++packetId, dhcpTransactionId);
-                                            dhcpRebind.Send(socket);
-                                        };
-                                        Console.WriteLine("Starting rebind timer");
-                                        rebindTimer.Start();
-                                    }
-                                    else if (rebinding)
-                                    {
-                                        Console.WriteLine("Re-OK from server - ready to launch!");
+                                        int exitCodeDns = ExecuteNetshCommand(
+                                            $"interface ipv4 set dnsservers \"{mainInterface.Name}\" static {selectedOffer.DnsServer} primary no"
+                                        );
+                                        Console.WriteLine($"netsh DNS exit code - {exitCodeDns}");
+                                        rcvAckEvent.Set();
                                     }
                                     rcvAck = true;
                                     break;
@@ -140,10 +116,25 @@ namespace DhcpClientNET
             IPv4Packet dhcpRequest = BuildDhcpRequestMessage(selectedOffer, mainInterface, ++packetId, dhcpTransactionId);
             dhcpRequest.Send(socket);
 
-            Console.WriteLine("> Press any key to close");
-            Console.ReadKey();
+            Console.WriteLine("Waiting for DHCP Ack and netsh...");
+            rcvAckEvent.WaitOne();
             running = false;
             socket.Close();
+
+            Console.WriteLine("> Press any key to close");
+            Console.ReadKey();
+        }
+
+        private static int ExecuteNetshCommand(string command)
+        {
+            Process proc = Process.Start(new ProcessStartInfo()
+            {
+                FileName = "netsh",
+                Arguments = command,
+                UseShellExecute = false
+            });
+            proc.WaitForExit();
+            return proc.ExitCode;
         }
 
         private static IPv4Packet BuildDhcpDiscoverMessage(NetworkInterface inter, ushort packetId, uint dhcpTransactionId)

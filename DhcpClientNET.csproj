@@ -31,6 +31,9 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -42,7 +45,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ApplicationPacketFactoryImpl.cs" />
+    <Compile Include="Packet\ApplicationPacketFactoryImpl.cs" />
     <Compile Include="DhcpOffer.cs" />
     <Compile Include="Dhcp\DhcpClientIdentifier.cs" />
     <Compile Include="Dhcp\DhcpDomainNameOption.cs" />
@@ -55,18 +58,19 @@
     <Compile Include="Dhcp\DhcpServerIdentifierOption.cs" />
     <Compile Include="Dhcp\DhcpSubnetMaskOption.cs" />
     <Compile Include="HardwareAddress.cs" />
-    <Compile Include="IApplicationPacket.cs" />
-    <Compile Include="IApplicationPacketFactory.cs" />
-    <Compile Include="IPv4Packet.cs" />
-    <Compile Include="ITransportPacketFactory.cs" />
+    <Compile Include="Packet\IApplicationPacket.cs" />
+    <Compile Include="Packet\IApplicationPacketFactory.cs" />
+    <Compile Include="Packet\IPv4Packet.cs" />
+    <Compile Include="Packet\ITransportPacketFactory.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ITransportPacket.cs" />
-    <Compile Include="TransportPacketFactoryImpl.cs" />
-    <Compile Include="UdpPacket.cs" />
+    <Compile Include="Packet\ITransportPacket.cs" />
+    <Compile Include="Packet\TransportPacketFactoryImpl.cs" />
+    <Compile Include="Packet\UdpPacket.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="app.manifest" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
